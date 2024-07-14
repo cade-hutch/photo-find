@@ -13,6 +13,8 @@ from PIL import Image
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIRECTORY = os.path.join(CURR_DIR, 'data')
 
+DESCRIPTIONS_FILENAME = 'descriptions.json'
+
 keyfile_path = os.path.join(CURR_DIR, 'image-finder-demo-firebase-adminsdk-3kvua-934cc33dbb.json')
 if os.path.exists(keyfile_path):
     cred_input = keyfile_path
@@ -125,7 +127,7 @@ def upload_json_descriptions_file(json_descriptions_file):
     bucket = storage.bucket('image-finder-demo.appspot.com')
 
     if json_descriptions_file.endswith((".json")):
-        blob = bucket.blob(os.path.join('data', api_key, 'descriptions.json'))
+        blob = bucket.blob(os.path.join('data', api_key, DESCRIPTIONS_FILENAME))
         blob.upload_from_filename(json_descriptions_file)
 
 
@@ -247,7 +249,7 @@ def download_descr_file(local_descr_filepath):
 
     for blob in list(blobs):
         print(blob.name)
-        if blob.name.endswith(basename):
+        if blob.name.endswith(DESCRIPTIONS_FILENAME):
             blob.download_to_filename(local_descr_filepath)
             return
 

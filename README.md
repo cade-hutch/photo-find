@@ -1,7 +1,8 @@
 # PhotoFind: Semantic Search Tool for Photo Albums
 
-An application thats uses image descriptions as queries to search through a collection of images.  
- Easily find either specific images or a group of related images within personal photo albums, simply describe what you are looking for.
+An application thats uses image descriptions as queries to search through a collection of images.
+
+Easily find either specific images or a group of related images within personal photo albums, simply describe what you are looking for.
 
 **Description Pre-processing:**  
 Using GPT4o's vision capabilities, a description can be generated for each image in an album.

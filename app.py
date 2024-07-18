@@ -363,7 +363,7 @@ def retrieval_page():
 
 
 def main():
-    st.title('Photo Find')
+    st.title('PhotoFind')
     footer = """
         <style>
             .footer {

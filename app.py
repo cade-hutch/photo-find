@@ -1,5 +1,3 @@
-#EMBEDDINGS / IMAGE SHUFFLING VERSION
-
 import os
 import time
 import random
@@ -70,6 +68,7 @@ def send_request(prompt):
             images_dir = st.session_state.images_dir
             base_dir = os.path.dirname(images_dir)
             json_file_path = os.path.join(base_dir, JSON_DESCR_FILENAME)
+    
             if not os.path.exists(json_file_path):
                 print('descriptions file not found, getting from firebase')
                 download_descr_file(json_file_path)
@@ -101,6 +100,7 @@ def create_image_dir_name(api_key):
 
 def user_folder_exists_local(api_key):
     folder_name = create_image_dir_name(api_key)
+
     for f in os.listdir(DATA_DIRECTORY):
         if f == folder_name:
             st.session_state.images_dir = os.path.join(DATA_DIRECTORY, folder_name, 'images')
@@ -124,6 +124,7 @@ def user_folder_exists_remote(api_key):
 def resize_and_crop_image(image, fixed_width=FIXED_WIDTH, max_height=FIXED_HEIGHT):
     width, height = image.size
     aspect_ratio = height / width
+
     new_height = int(fixed_width * aspect_ratio)
     
     #resize the image to the fixed width while maintaining aspect ratio
@@ -133,26 +134,23 @@ def resize_and_crop_image(image, fixed_width=FIXED_WIDTH, max_height=FIXED_HEIGH
     if new_height > max_height:
         top = (new_height - max_height) // 2
         bottom = top + max_height
+
         resized_image = resized_image.crop((0, top, fixed_width, bottom))
     
     return resized_image
-
-
-def resize_image(image, fixed_height=200):
-    width, height = image.size
-    aspect_ratio = width / height
-    new_width = int(fixed_height * aspect_ratio)
-    return image.resize((new_width, fixed_height))
 
 
 def on_generate_button_submit(uploaded_images, from_uploaded=True, generate=True):
     st.session_state.name_and_image_dict = dict()
     st.session_state.init_display_images = True
     st.session_state.search_result_images = []
+
     #TODO keep folder as temp?
     foldername = create_image_dir_name(st.session_state.user_openai_api_key)
+
     images_dir = os.path.join(DATA_DIRECTORY, foldername, 'images')
     st.session_state.images_dir = images_dir
+
     if not os.path.exists(images_dir):
         os.makedirs(images_dir)
         print('image folder created')
@@ -160,7 +158,9 @@ def on_generate_button_submit(uploaded_images, from_uploaded=True, generate=True
     if from_uploaded:
         uploads_to_firestore = []
         uploaded_img_names = [img.name for img in uploaded_images]
+
         new_uploaded_img_names = rename_images(images_dir, uploaded_img_names)
+    
         for uploaded_img, img_name in zip(uploaded_images, new_uploaded_img_names):
             file_path = os.path.join(images_dir, img_name)
 
@@ -191,8 +191,10 @@ def on_generate_button_submit(uploaded_images, from_uploaded=True, generate=True
         if new_images:
             for i, generation_result in enumerate(generate_image_descrptions(new_images, images_dir, api_key)):
                 new_descr = generation_result[0]
+
                 generation_time = generation_result[1]
                 generate_total_time += generation_time
+
                 st.write(f"({i+1}/{len(new_images)}) Finished generating for {new_images[i]} in {generation_time} seconds")
                 new_descriptions.append(new_descr)
 
@@ -214,8 +216,10 @@ def on_generate_button_submit(uploaded_images, from_uploaded=True, generate=True
             else:
                 st.write("Generating Embeddings....")
                 create_embeddings(api_key, embeddings_pickle_file, descr_filepath)
+
             t_end_embeddings = time.perf_counter()
             embeddings_time = round(t_end_embeddings - t_start_embeddings, 2)
+
             st.success(f"Finished generating embeddings in {embeddings_time} seconds")
 
             #FIREBASE - STORE JSON
@@ -243,12 +247,12 @@ def retrieval_page():
     images_dir = st.session_state.images_dir
     if len(st.session_state.name_and_image_dict) == 0:
         st.session_state.name_and_image_dict = create_images_dict(images_dir)
+    
     images_count = get_image_count(images_dir)
     api_key = st.session_state.user_openai_api_key
 
     submit_more_images_button = st.button(label='Submit More Images')
     if submit_more_images_button:
-        print('more images to submit')
         st.session_state.history = []
         st.session_state.show_retrieval_page = False
         st.session_state.upload_more_images = True
@@ -271,22 +275,23 @@ def retrieval_page():
             submit_button = st.form_submit_button(label='Send')
 
     if submit_button:
-        #no longer display imagees without search results
+        #no longer display images without search results
         st.session_state.init_display_images = False
-        #create placeholder col2 for request results
-        #sort by embeddings before sending request
-        place_top_cols = True
+        
+        #TODO: needed?
         top_col1, top_col2 = st.columns(2)
         folder_name = os.path.dirname(images_dir)
         embeddings_pickle_file = os.path.join(DATA_DIRECTORY, folder_name, 'embeddings.pkl')
+
         print("FILE NAMES:")
         print(embeddings_pickle_file)
         print(images_dir)
+
         t_start = time.perf_counter()
         images_ranked = query_for_related_descriptions(api_key, user_input, embeddings_pickle_file, images_dir, k=0)
+
         print('\n------------------------------NEW SEARCH------------------------------')
-        #print(type(images_ranked))
-        #if images_ranked.any() and len(images_ranked[0]) > 1:
+        
         if len(images_ranked[0]) > 1:
             st.session_state.images_ranked = images_ranked[0].tolist()
             st.session_state.all_images = [os.path.join(st.session_state.images_dir, img)
@@ -315,7 +320,6 @@ def retrieval_page():
                 i4 = img_list[i+3]
                 col4.image(i4, use_column_width=True)
 
-    #NOTE: async works here
     images_to_display = []
     for item_type, content in st.session_state.history:
         if item_type == 'text':
@@ -323,15 +327,15 @@ def retrieval_page():
         elif item_type == 'image':
             images_to_display.append(content)
 
-    #for i in range(0, len(images_to_display), 2):
     for i in range(0, len(st.session_state.search_result_images), 2):
         col1, col2 = st.columns(2)
+
         res_img = st.session_state.name_and_image_dict[st.session_state.search_result_images[i]]
-        col1.image(res_img, use_column_width=True, caption="top result")
+        col1.image(res_img, use_column_width=True, caption="Top Result")
         
-        if i + 1 < len(st.session_state.search_result_images): #TODO: handle when appending non results
+        if i + 1 < len(st.session_state.search_result_images):
             res_img = st.session_state.name_and_image_dict[st.session_state.search_result_images[i+1]]
-            col2.image(res_img, use_column_width=True, caption='top result')
+            col2.image(res_img, use_column_width=True, caption='Top Tesult')
 
     #display rest of images in ranked order
     if not st.session_state.init_display_images:
@@ -395,16 +399,18 @@ def main():
             if validate_openai_api_key(user_api_key_input):
                 st.session_state.user_openai_api_key = user_api_key_input
                 st.session_state.submitted_api_key = True
+
                 st.success('API key validated')
+
                 #TODO: check for embeddings
                 remote_folder_exists = user_folder_exists_remote(user_api_key_input) #firestore folder exists
+
                 if user_folder_exists_local(user_api_key_input):
                     st.session_state.api_key_exists = True
                     # if remote_folder_exists:
-                    #     print('before sync2') #TODO: compare image counts here****************************
+                    #     #TODO: compare image counts here****************************
                     #     if sync_local_with_remote(user_api_key_input):
-                    #         print('sync 2')
-                    #TODO: validate with remote?
+                    #     #TODO: validate with remote?
                 elif remote_folder_exists:
                     st.session_state.api_key_exists = True
                     if sync_local_with_remote(user_api_key_input):
@@ -477,9 +483,6 @@ def make_st_vars():
 
     if 'has_submitted_images' not in st.session_state:
         st.session_state.has_submitted_images = False
-
-    if 'uploaded_images' not in st.session_state: #TODO: unused
-        st.session_state.uploaded_images = []
 
     if 'upload_more_images' not in st.session_state:
         st.session_state.upload_more_images = False

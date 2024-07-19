@@ -25,7 +25,9 @@ def validate_openai_api_key(openai_api_key):
     validate = False
     if not openai_api_key.startswith('sk-'):
         openai_api_key = 'sk-' + openai_api_key
+
     client = OpenAI(api_key=openai_api_key)
+
     try:
         response = client.chat.completions.create(
             model='gpt-3.5-turbo',
@@ -34,9 +36,9 @@ def validate_openai_api_key(openai_api_key):
         )
         if response.choices[0].message.content:
             validate = True
-    #TODO: error code for invalid key is 401
     except Exception as e:
         print(f"An error occurred: {e}")
+
     # reattempt with 'sk-proj-' prefix
     if not validate:
         openai_api_key = 'sk-proj-' + openai_api_key[3:]
@@ -57,64 +59,6 @@ def validate_openai_api_key(openai_api_key):
 
 # ****** FILE UTILS ******
 
-#TODO: not currently used
-def are_all_files_png_and_jpg(directory_path):
-    for filename in os.listdir(directory_path):
-        file_path = os.path.join(directory_path, filename)
-
-        if os.path.isfile(file_path) and not filename.lower().endswith((".png", ".jpg")):
-            if not filename.endswith('.DS_Store'):
-                print('invalid folder: contains files that are not pngs/jpgs')
-                return False
-    return True
-
-
-#TODO: not currently used
-def descriptions_file_up_to_date(images_dir, json_file_path):
-    json_file_names = []
-    with open(json_file_path, 'r') as file:
-        data = json.load(file)
-        for element in data:
-            if 'file_name' in element:
-                json_file_names.append(element['file_name'])
-    
-    img_names = []
-    for entry in os.listdir(images_dir):
-        # Construct the full path of the entry
-        full_path = os.path.join(images_dir, entry)
-        # Check if the entry is a file and has a .png extension
-        if os.path.isfile(full_path) and entry.lower().endswith((".png", ".jpg")):
-            img_names.append(entry)
-
-    if len(img_names) != len(json_file_names):
-        return False
-    
-    return sorted(json_file_names) == sorted(img_names)
-
-
-#TODO: not currently used
-def get_descriptions_from_json(json_description_file_path, get_images=False):
-    #return str list(s)
-    try:
-        with open(json_description_file_path, 'r') as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        data = []
-
-    descriptions = []
-    image_names = []
-    if get_images:
-        for element in data:
-            descriptions.append(element['description'])
-            image_names.append(element['file_name'])
-
-        return image_names, descriptions
-    else:
-        for element in data:
-            descriptions.append(element['description'])
-        return descriptions
-
-
 def retrieve_contents_from_json(json_file_path):
     #return list of dicts(keys = filename, value = descr)
     try:
@@ -127,11 +71,6 @@ def retrieve_contents_from_json(json_file_path):
     except json.JSONDecodeError:
         print(f"Error decoding JSON file: {json_file_path}")
         return None
-
-
-#TODO: not currently used
-def get_new_descriptions(new_images, json_description_file_path):
-    ...
 
 
 def get_image_count(images_dir):
@@ -259,28 +198,16 @@ def resize_image(image_path, output_folder, max_size=_5_MB):
         print(f"Failed to resize {image_path}: {e}")
 
 
-#TODO: not currently used
-def reduce_png_directory(image_dir, max_size=_5_MB, fast=True):
-    ld = [i for i in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, i))]
-    img_paths = [os.path.join(image_dir, img) for img in ld if img.lower().endswith((".png", ".jpg"))]
-
-    if fast:
-        with ThreadPoolExecutor() as executor:
-            executor.map(reduce_png_quality, img_paths, img_paths * len(img_paths))
-    else:
-        with ThreadPoolExecutor() as executor:
-            executor.map(resize_image, img_paths, [image_dir] * len(img_paths))
-
-
 # ****** TOKEN REDUCING UTILS ******
 
 def remove_description_pretense(description):
     """
+    Remove unuseful pretenses that are likley to occur in generated image descriptions
     outliers:
-    The image is a photograph taken from a camera, possibly with an iPhone considering the initial context provided.
-    The image depicts a close-up photo of
-    The image is a portrait-oriented photo taken from a camera, showing a
-    The image is taken from a camera and shows a
+        The image is a photograph taken from a camera, possibly with an iPhone considering the initial context provided.
+        The image depicts a close-up photo of
+        The image is a portrait-oriented photo taken from a camera, showing a
+        The image is taken from a camera and shows a
     """
     #TODO: ss prefix is no longer a part of prompting
     ss_prefix = ''
@@ -332,16 +259,6 @@ def remove_description_pretense(description):
     #TODO: inefficient to split whole description into list --> only need first
     new_description = ss_prefix + ' '.join(words)
     return new_description
-
-
-def remove_description_pretenses_in_file(descr_file, output_file):
-    descriptions_json = retrieve_contents_from_json(descr_file)
-    for i, d in enumerate(descriptions_json):
-        new_descr = remove_description_pretense(d['description'])
-        descriptions_json[i]['description'] = new_descr
-
-    with open(output_file, 'w') as file:
-        json.dump(descriptions_json, file, indent=2)
 
 
 # ****** EMBEDDINGS UTILS ******
@@ -423,23 +340,6 @@ def rank_and_filter_descriptions(api_key, descriptions_dict, prompt, filter=1.0)
     #TODO: still need to return iin ranked form -> cant use dictionary
 
 
-#TODO: currently not used
-def get_top_query_result(api_key, descriptions_file, prompt, filter=1.0):
-    """
-    helper function for retrieve_and_return. get descriptions dictionary from descriptions json file.
-    """
-    descriptions_dict = retrieve_contents_from_json(descriptions_file)
-    if filter > 1.0 or filter <= 0.0:
-        filter = 1
-    pickle_file = os.path.join(DATA_DIRECTORY, api_key[-5:], "embeddings.pkl")
-    if not os.path.exists(pickle_file):
-        assert False, "get_top_query_result: no pickle file "
-    
-    #embeddings search -> return top percentage of ranked descriptions based on filter value
-    filtered_images = query_and_filter(api_key, pickle_file, descriptions_dict, prompt, filter)[0]
-    return [filtered_images[0]]
-
-
 def query_and_filter(api_key, embeddings_pickle_file, descriptions_dict, query, filter):
     file_names = list(descriptions_dict.keys())
     descriptions = list(descriptions_dict.values())
@@ -510,18 +410,6 @@ def create_logging_entry(input, rephrased_input, output, raw_output):
         'rephrased_input' : rephrased_input,
         'output' : output,
         'raw_output' : raw_output
-    }
-    return log_obj
-
-
-#TODO: not currrently used
-def create_generate_log_entry(filename, filesize, generate_time):
-    current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_obj = {
-        'generate_time_stamp' : current_date_time,
-        'file_name' : filename, 
-        'file_size' : filesize,
-        'generate_time' : generate_time
     }
     return log_obj
 

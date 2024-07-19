@@ -78,6 +78,7 @@ def send_request(prompt):
             end_t = time.perf_counter()
 
             print('output images list:', output_image_names)
+            print('\n----------------------------------------------------------------------\n')
             retrieve_time = format(end_t - start_t, '.2f')
 
             st.session_state.history.append(('text', f"Found {len(output_image_names)} images in {retrieve_time} seconds"))

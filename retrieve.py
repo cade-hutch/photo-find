@@ -73,7 +73,6 @@ def handle_faulty_response_format(res):
             res_list = extract_pattern.findall(res)
             return [s + '.png' for s in res_list]
 
-        print("trying format fix 3")
         #remove the surrounding brackets and strip whitespace
         stripped_string = res.strip('[] \n')
         lines = stripped_string.split('\n')
@@ -101,10 +100,6 @@ def retrieve_and_return(image_descriptions_file, retrieval_prompt, api_key, filt
     client = OpenAI(api_key=api_key)
 
     image_descriptions: dict = retrieve_contents_from_json(image_descriptions_file)
-
-    print(api_key)
-    print(retrieval_prompt)
-    print(image_descriptions)
 
     if filter is not None:
         image_descriptions = rank_and_filter_descriptions(api_key, image_descriptions,
@@ -138,11 +133,6 @@ def retrieve_and_return(image_descriptions_file, retrieval_prompt, api_key, filt
 
         formatted_output = handle_faulty_response_format(res)
 
-        print(type(res))
-        print(res)
-        print("NEW OUT")
-        print(formatted_output)
-
         if type(formatted_output) == list: #TODO: needed?
             output_images = []
             for s in formatted_output:
@@ -152,7 +142,6 @@ def retrieve_and_return(image_descriptions_file, retrieval_prompt, api_key, filt
     print(f"RESPONSE RECEIVED in {round(req_stop_time - req_start_time, 2)}s")
 
     if type(output_images) == str:
-        print('got output as string instead of list')
         output_images = [output_images]
 
     #store to logs

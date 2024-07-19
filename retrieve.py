@@ -48,11 +48,12 @@ def handle_faulty_response_format(res):
 
     res_list = []
     if "'''" in res:
+        # fix 1
         clean_res = res.replace('json', '', 1).strip()
         res_list = json.loads(clean_res)
 
     if not res_list and "- " in res: #handle dashed list
-        print("trying format fix 2")
+        # fix 2
         lines = res.split('\n')
         file_names = []
 
@@ -67,7 +68,7 @@ def handle_faulty_response_format(res):
     
     elif not res_list: #handle plaintext or with []
         if type(res) == str:
-            print('trying format fix 2.5')
+            #fix 2.5
             extract_pattern = re.compile(r"(?:^|[\s\"'])([^\"'\s]+)\.png")
             res_list = extract_pattern.findall(res)
             return [s + '.png' for s in res_list]
@@ -92,6 +93,8 @@ def handle_faulty_response_format(res):
 
 def retrieve_and_return(image_descriptions_file, retrieval_prompt, api_key, filter=0.1, return_filter=False):
     """
+    Send OpenAI api request -- find the image description(s) the user is searching for.
+
     filter(float): The fraction of top ranking descriptions to send to the model
     return_filter(bool): Return the filtered descriptions that were sent -- Used for testing
     """
@@ -104,7 +107,6 @@ def retrieve_and_return(image_descriptions_file, retrieval_prompt, api_key, filt
     print(image_descriptions)
 
     if filter is not None:
-        print('about to filter')
         image_descriptions = rank_and_filter_descriptions(api_key, image_descriptions,
                                                           retrieval_prompt, filter=filter)
         print(f"filtered descriptions -> only sending {len(image_descriptions)} to api")

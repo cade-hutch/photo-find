@@ -6,7 +6,7 @@ import subprocess
 from PIL import Image
 
 from retrieve import retrieve_and_return
-from descr_generator import generate_image_descrptions, rename_images, get_new_pics_dir, create_embeddings, update_embeddings
+from descr_generator import generate_image_descrptions, rename_images, get_pics_without_descrs, create_embeddings, update_embeddings
 from utils import validate_openai_api_key, get_image_count, get_descr_filepath, query_for_related_descriptions
 #TODO: state for importing so firebase only inits once??
 from fb_storage_utils import init_app, upload_images_from_list, upload_json_descriptions_file, download_descr_file, does_image_folder_exist
@@ -184,7 +184,7 @@ def on_generate_button_submit(uploaded_images, from_uploaded=True, generate=True
             #TODO: needed for dev
             #rename_files_in_directory(images_dir)
             ...
-        new_images = get_new_pics_dir(images_dir)
+        new_images = get_pics_without_descrs(images_dir)
         new_descriptions = []
         api_key = st.session_state.user_openai_api_key
         generate_total_time = 0.0
@@ -453,7 +453,7 @@ def main():
                 key_dir_name = create_image_dir_name(st.session_state.user_openai_api_key)
                 st.session_state.images_dir = os.path.join(DATA_DIRECTORY, key_dir_name, 'images')
 
-            pics_missing_descriptions = get_new_pics_dir(st.session_state.images_dir)
+            pics_missing_descriptions = get_pics_without_descrs(st.session_state.images_dir)
             if pics_missing_descriptions:
                 print('images without descriptions found')
                 

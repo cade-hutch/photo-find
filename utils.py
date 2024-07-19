@@ -4,8 +4,8 @@ import pickle
 import faiss
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-
 from datetime import datetime
+
 from PIL import Image
 from openai import OpenAI
 from langchain_community.embeddings import OpenAIEmbeddings
@@ -13,6 +13,8 @@ from langchain_community.embeddings import OpenAIEmbeddings
 MAIN_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIRECTORY = os.path.join(os.path.dirname(__file__), 'data')
 EMBEDDINGS_DIR = os.path.join(MAIN_DIR, 'embeddings')
+
+DESCR_FILENAME = "descriptions.json"
 
 _10_MB = 10*1024*1024
 _5_MB = 5*1024*1024
@@ -55,7 +57,8 @@ def validate_openai_api_key(openai_api_key):
 
 # ****** FILE UTILS ******
 
-def are_all_files_png_or_jpg(directory_path):
+#TODO: not currently used
+def are_all_files_png_and_jpg(directory_path):
     for filename in os.listdir(directory_path):
         file_path = os.path.join(directory_path, filename)
 
@@ -66,6 +69,7 @@ def are_all_files_png_or_jpg(directory_path):
     return True
 
 
+#TODO: not currently used
 def descriptions_file_up_to_date(images_dir, json_file_path):
     json_file_names = []
     with open(json_file_path, 'r') as file:
@@ -88,6 +92,7 @@ def descriptions_file_up_to_date(images_dir, json_file_path):
     return sorted(json_file_names) == sorted(img_names)
 
 
+#TODO: not currently used
 def get_descriptions_from_json(json_description_file_path, get_images=False):
     #return str list(s)
     try:
@@ -124,6 +129,7 @@ def retrieve_contents_from_json(json_file_path):
         return None
 
 
+#TODO: not currently used
 def get_new_descriptions(new_images, json_description_file_path):
     ...
 
@@ -138,14 +144,13 @@ def get_image_count(images_dir):
 
 def get_descr_filepath(images_dir):
     key_base_dir = os.path.dirname(images_dir)
-    json_description_file_path = os.path.join(key_base_dir, 'descriptions.json')
+    json_description_file_path = os.path.join(key_base_dir, DESCR_FILENAME)
 
     return json_description_file_path
 
 
 # ****** IMAGE PROCESSING UTILS ******
 
-#faster(6 seconds vs)
 def reduce_png_quality(file_path, output_path, quality_level=50, max_size=_3_MB, scale_factor=0.6):
     """
     Reduces the quality of a PNG file.
@@ -188,7 +193,7 @@ def reduce_png_quality(file_path, output_path, quality_level=50, max_size=_3_MB,
         print(e)
 
 
-#TODO: make faster version
+#TODO: make a faster version
 def reduce_jpeg_size(input_path, output_path, target_size=_3_MB, initial_quality=85, step=5):
     with Image.open(input_path) as img:
         # Get the initial image size
@@ -221,7 +226,7 @@ def reduce_jpeg_size(input_path, output_path, target_size=_3_MB, initial_quality
             print(f"Final size: {size_mb:.2f}MB at quality {quality}")
 
 
-#slower method, better quality??
+#TODO: slower method, better quality??
 def resize_image(image_path, output_folder, max_size=_5_MB):
     """Resizes a PNG image to be under the specified max size (default 5MB) and saves it to the output folder."""
     try:
@@ -254,6 +259,7 @@ def resize_image(image_path, output_folder, max_size=_5_MB):
         print(f"Failed to resize {image_path}: {e}")
 
 
+#TODO: not currently used
 def reduce_png_directory(image_dir, max_size=_5_MB, fast=True):
     ld = [i for i in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, i))]
     img_paths = [os.path.join(image_dir, img) for img in ld if img.lower().endswith((".png", ".jpg"))]
@@ -348,9 +354,10 @@ def add_new_descr_to_embedding_pickle(embeddings_obj, pickle_file, descriptions,
             existing_embeddings = pickle.load(file)
     else:
         existing_embeddings = []
-    print(len(existing_embeddings))
+
     if type(descriptions) == str:
         descriptions = [descriptions]
+
     new_rows = []
     for descr in descriptions:
         new_row = create_single_embedding(embeddings_obj, descr)
@@ -398,24 +405,25 @@ def rank_and_filter_descriptions(api_key, descriptions_dict, prompt, filter=1.0)
         filter = 1.0
     if len(descriptions_dict) * filter < 1:
         filter = 1.0
-    #t_s = time.perf_counter()
+
     pickle_file = os.path.join(DATA_DIRECTORY, api_key[-5:], "embeddings.pkl")
     print(pickle_file)
+
     if not os.path.exists(pickle_file):
         assert False, "rank_and_filter_descriptions: no pickle file "
     
     #embeddings search -> return top percentage of ranked descriptions based on filter value
     filtered_images = query_and_filter(api_key, pickle_file, descriptions_dict, prompt, filter)[0]
+
     filtered_descr_dict = dict()
     for img in list(filtered_images):
         filtered_descr_dict[img] = descriptions_dict[img]
-    #t_e = time.perf_counter()
-    #print(f'embed time: {t_e - t_s}')
+    
     return filtered_descr_dict
     #TODO: still need to return iin ranked form -> cant use dictionary
-    #filterd_descriptions = []
 
 
+#TODO: currently not used
 def get_top_query_result(api_key, descriptions_file, prompt, filter=1.0):
     """
     helper function for retrieve_and_return. get descriptions dictionary from descriptions json file.
@@ -423,10 +431,9 @@ def get_top_query_result(api_key, descriptions_file, prompt, filter=1.0):
     descriptions_dict = retrieve_contents_from_json(descriptions_file)
     if filter > 1.0 or filter <= 0.0:
         filter = 1
-    #t_s = time.perf_counter()
     pickle_file = os.path.join(DATA_DIRECTORY, api_key[-5:], "embeddings.pkl")
     if not os.path.exists(pickle_file):
-        assert False, "rank_and_filter_descriptions: no pickle file "
+        assert False, "get_top_query_result: no pickle file "
     
     #embeddings search -> return top percentage of ranked descriptions based on filter value
     filtered_images = query_and_filter(api_key, pickle_file, descriptions_dict, prompt, filter)[0]
@@ -439,7 +446,9 @@ def query_and_filter(api_key, embeddings_pickle_file, descriptions_dict, query, 
     embeddings_obj = OpenAIEmbeddings(api_key=api_key)
 
     k = int(len(descriptions) * filter)
+
     embeddings_list = get_embeddings_from_pickle_file(embeddings_pickle_file)
+
     index = faiss.IndexFlatL2(1536)
     index.add(embeddings_list)
 
@@ -449,20 +458,23 @@ def query_and_filter(api_key, embeddings_pickle_file, descriptions_dict, query, 
     distances, indices = index.search(query_embedding, k)
 
     images_ranked = np.array(file_names)[indices]
-    search_ouput = np.array(descriptions)[indices]
+
+    #search_ouput = np.array(descriptions)[indices]
     #print(search_ouput)
     #print(images_ranked)
+
     return images_ranked
 
 
 def query_for_related_descriptions(api_key, query, embeddings_pickle_file, images_dir, k=10):
-
     json_descr_filepath = get_descr_filepath(images_dir)
     json_dict = retrieve_contents_from_json(json_descr_filepath)
     
     file_names = list(json_dict.keys())
     descriptions = list(json_dict.values())
+
     embeddings_obj = OpenAIEmbeddings(api_key=api_key)
+
     if not os.path.exists(embeddings_pickle_file):
         add_new_descr_to_embedding_pickle(embeddings_obj, embeddings_pickle_file, descriptions, create_new=True)
 
@@ -470,6 +482,7 @@ def query_for_related_descriptions(api_key, query, embeddings_pickle_file, image
         k = len(file_names)
 
     embeddings_list = get_embeddings_from_pickle_file(embeddings_pickle_file)
+
     index = faiss.IndexFlatL2(1536)
     index.add(embeddings_list)
 
@@ -479,9 +492,11 @@ def query_for_related_descriptions(api_key, query, embeddings_pickle_file, image
     distances, indices = index.search(query_embedding, k)
 
     images_ranked = np.array(file_names)[indices]
+
     #search_ouput = np.array(descriptions)[indices] NOTE: for looking at ranking results
     #print(search_ouput)
     #print(images_ranked)
+
     return images_ranked
 
 
@@ -489,16 +504,32 @@ def query_for_related_descriptions(api_key, query, embeddings_pickle_file, image
 
 def create_logging_entry(input, rephrased_input, output, raw_output):
     current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return {'time_stamp' : current_date_time, 'input' : input, 'rephrased_input' : rephrased_input, 'output' : output, 'raw_output' : raw_output}
+    log_obj = {
+        'time_stamp' : current_date_time,
+        'input' : input,
+        'rephrased_input' : rephrased_input,
+        'output' : output,
+        'raw_output' : raw_output
+    }
+    return log_obj
 
 
+#TODO: not currrently used
 def create_generate_log_entry(filename, filesize, generate_time):
     current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return {'generate_time_stamp' : current_date_time, 'file_name' : filename, 'file_size' : filesize, 'generate_time' : generate_time}
+    log_obj = {
+        'generate_time_stamp' : current_date_time,
+        'file_name' : filename, 
+        'file_size' : filesize,
+        'generate_time' : generate_time
+    }
+    return log_obj
 
 
 def store_logging_entry(logging_file, entry):
-    #save a new single entry to a json logging file
+    """
+    save a new single entry to a json logging file
+    """
     if not os.path.exists(os.path.dirname(logging_file)):
         os.mkdir(os.path.dirname(logging_file))
 

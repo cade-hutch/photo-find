@@ -15,6 +15,8 @@ DATA_DIRECTORY = os.path.join(CURR_DIR, 'data')
 
 DESCRIPTIONS_FILENAME = 'descriptions.json'
 
+DB_APP_NAME = "image-finder-demo.appspot.com"
+
 keyfile_path = os.path.join(CURR_DIR, 'image-finder-demo-firebase-adminsdk-3kvua-934cc33dbb.json')
 if os.path.exists(keyfile_path):
     cred_input = keyfile_path
@@ -38,14 +40,17 @@ try:
 except ValueError:
     cred = credentials.Certificate(cred_input)
     print('initing app....')
-    firebase_admin.initialize_app(cred, {'storageBucket': 'image-finder-demo.appspot.com'})
+    firebase_admin.initialize_app(cred, {'storageBucket': DB_APP_NAME})
     print('firebase initialized')
 
 db = firestore.client()
-bucket = storage.bucket('image-finder-demo.appspot.com')
+bucket = storage.bucket(DB_APP_NAME)
 
 
 def init_app():
+    """
+    first function that app.py loop runs to test correct import/db connection
+    """
     print('init app dud')
 
 
@@ -56,7 +61,7 @@ def upload_images_from_list(image_paths, skip_upload=False):
     images_paths: (list(str))
     """
     if not skip_upload:
-        bucket = storage.bucket('image-finder-demo.appspot.com')
+        bucket = storage.bucket(DB_APP_NAME)
 
         folder_name = os.path.basename(os.path.dirname(image_paths[0]))
         folder_name = image_paths[0].split('/')[-3]
@@ -83,7 +88,6 @@ def upload_images_from_list(image_paths, skip_upload=False):
                     print('trying again')
                 if try_again:
                     blob.upload_from_filename(image_pathname)
-                    #t_end = time.perf_counter() - 15 TODO: keep sleep in time calc??
 
                 t_end = time.perf_counter()
                 print('({}/{}) finished {} upload in {}s'.format(i+1, num_imgs, image_name, round(t_end - t_start, 2)))
@@ -93,7 +97,7 @@ def upload_images_from_dir(folder_path):
     """
     store images in a folder to folder in firebase
     """
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     folder_name = folder_path.split('/')[-2]
 
     for filename in os.listdir(folder_path):
@@ -101,18 +105,21 @@ def upload_images_from_dir(folder_path):
             t_start = time.perf_counter()
             blob = bucket.blob(os.path.join('data', folder_name, 'images', filename))
             t_end1 = time.perf_counter()
+
             print('finished db connection in {}s'.format(round(t_end1 - t_start, 2)))
+
             blob.upload_from_filename(os.path.join(folder_path, filename))
+
             t_end = time.perf_counter()
             print('finished {} upload in {}s'.format(filename, round(t_end - t_start, 2)))
 
 
 def fetch_and_process_images(blobs):
     for blob in blobs:
-        #the blob's content is read into memory as bytes
+        #the blobcontent is read into memory as bytes
         image_bytes = blob.download_as_bytes()
         
-        #the bytes are converted into a PIL Image object
+        #bytes convert into a PIL Image object
         image = Image.open(io.BytesIO(image_bytes))
         
         #process the image (e.g., resize, crop, save, etc.)
@@ -124,7 +131,7 @@ def upload_json_descriptions_file(json_descriptions_file):
     upload JSON file to firebase
     """
     api_key = json_descriptions_file.split('/')[-2]
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
 
     if json_descriptions_file.endswith((".json")):
         blob = bucket.blob(os.path.join('data', api_key, DESCRIPTIONS_FILENAME))
@@ -132,9 +139,11 @@ def upload_json_descriptions_file(json_descriptions_file):
 
 
 def get_file_url(filename):
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     blob = bucket.blob(filename)
-    return blob.generate_signed_url(version="v4", expiration=datetime.timedelta(minutes=15), method="GET")
+    return blob.generate_signed_url(version="v4",
+                                    expiration=datetime.timedelta(minutes=15),
+                                    method="GET")
 
 
 def fetch_image_descriptions(file_url, api_key=None):
@@ -146,10 +155,11 @@ def fetch_image_descriptions(file_url, api_key=None):
 
 
 def list_files_in_folder(folder_name, search_pngs=True):
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     blobs = bucket.list_blobs(prefix=folder_name)
+
     if search_pngs and blobs:
-        #WARNING: line below causes async issue with streamlit
+        #NOTE: WARNING -- line below prone to cause async issue with streamlit
         return [blob.name for blob in blobs if blob.name.endswith((".png", ".jpg"))]
     elif blobs:
         return [blob.name for blob in blobs]
@@ -161,7 +171,7 @@ def list_files_in_folder(folder_name, search_pngs=True):
 def does_image_folder_exist(folder_name):
     images_dir = os.path.join("data", folder_name, 'images')
 
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     blobs = list(bucket.list_blobs(prefix=images_dir))
 
     if len(blobs) > 1:
@@ -196,7 +206,7 @@ def get_remote_image_count(remote_folder, list_imgs=False):
     if not remote_folder.endswith('images'):
         remote_folder = os.path.join(remote_folder, 'images')
 
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     blobs = bucket.list_blobs(prefix=remote_folder)
 
     if list_imgs:
@@ -213,18 +223,14 @@ def download_images(remote_folder, local_folder):
     if not remote_folder.endswith('images'):
         remote_folder = os.path.join(remote_folder, 'images')
 
-    print('before bucket')
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     blobs = bucket.list_blobs(prefix=remote_folder)
-    print('after bucket/blobs')
 
     if not os.path.exists(local_folder):
         os.makedirs(local_folder)
 
     for blob in blobs:
-        print('c')
         if blob.name.lower().endswith((".png", ".jpg")):
-            print('d')
             file_path = os.path.join(local_folder, os.path.basename(blob.name))
             if not os.path.exists(file_path):
                 blob.download_to_filename(file_path)
@@ -235,7 +241,7 @@ def download_descr_file(local_descr_filepath):
     print('******download_descr_file*******')
     print(local_descr_filepath)
 
-    bucket = storage.bucket('image-finder-demo.appspot.com')
+    bucket = storage.bucket(DB_APP_NAME)
     filename = os.path.basename(local_descr_filepath)
     basename = os.path.basename(os.path.dirname(local_descr_filepath))
 
@@ -243,9 +249,6 @@ def download_descr_file(local_descr_filepath):
 
     db_file_path = os.path.join('data', basename, filename)
     blobs = bucket.list_blobs(prefix=db_file_path)
-
-    print('got blobs')
-    print(blobs)
 
     for blob in list(blobs):
         print(blob.name)
@@ -280,9 +283,10 @@ def compare_dev_local_and_db_imgs(img_folder_name):
 
 
 if __name__ == "__main__":
-    # main function app.py calls via running this script with subprocess.
-    # This is a workaround for the threading/concurrency issues between streamlit and firebase_admin functions
-
+    """
+    loop in app.py calls via running this script with subprocess.
+    This is a workaround for the threading/concurrency issues between streamlit and firebase_admin functions
+    """
     descr_file = sys.argv[1]
     image_folder_path = sys.argv[2]
     remote_image_folder_name = image_folder_path.split('/')[-2] #api key abbrev.

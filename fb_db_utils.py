@@ -36,7 +36,7 @@ except ValueError:
     print('firebase initialized')
 
 
-#**.stream() method, slightly faster than get_data()??**
+#TODO: .stream() method, slightly faster than get_data()??
 def read_data(db, user_id):
     query_logs_ref = db.collection('logs').document(user_id).collection('query_logs')
 
@@ -47,7 +47,7 @@ def read_data(db, user_id):
     return doc_dicts
 
 
-#**.stream() method, better than get_data()??**
+#TODO: .stream() method, better than get_data()??
 def print_data(user_id):
     db = firestore.client()
 
@@ -74,7 +74,7 @@ def get_data(db, user_id):
     return query_data
 
 
-#**not tested**
+#TODO: **not tested**
 def update_data():
     db = firestore.client()
 
@@ -84,7 +84,7 @@ def update_data():
     })
 
 
-#**not tested**
+#TODO: **not tested**
 def delete_data():
     db = firestore.client()
 
@@ -172,7 +172,7 @@ def sync_log_file_to_db(db, log_json_file, step_through=False):
         }
 
         query_id = uuid.uuid4().hex
-        print('adding new')
+
         new_query_doc_ref = db.collection('logs').document(user_id).collection('query_logs').document(query_id)
         new_query_doc_ref.set(q)
 
